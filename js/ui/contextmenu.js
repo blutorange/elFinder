@@ -5,6 +5,7 @@
  **/
 $.fn.elfindercontextmenu = function(fm) {
 	"use strict";
+	var supportsPopover = HTMLElement.prototype.hasOwnProperty("popover");
 	return this.each(function() {
 		var self   = $(this),
 			cmItem = 'elfinder-contextmenu-item',
@@ -281,11 +282,21 @@ $.fn.elfindercontextmenu = function(fm) {
 					}),
 					evts;
 
+				// Coordinates are computed relative to the top-left corner of the elFinder element,
+				// since the context menu is positioned relative to that element. Popovers of the
+				// HTML top layer are always positioned relative to the viewport, i.e. the top-left
+				// corner of the screen.
+				if (supportsPopover) {
+					css.top += bpos.top;
+					css.left += bpos.left;
+				}
+
 				autoSyncStop = true;
 				fm.autoSync('stop');
 				base.width(bwidth);
 				menu.stop().removeAttr('style').css(css);
 				fm.toFront(menu);
+				supportsPopover && menu[0].showPopover();
 				menu.show();
 				base.attr('style', bstyle);
 				
@@ -318,6 +329,7 @@ $.fn.elfindercontextmenu = function(fm) {
 				currentType = currentTargets = null;
 				
 				if (menu.is(':visible') || menu.children().length) {
+					supportsPopover && menu[0].hidePopover();
 					fm.toHide(menu.removeAttr('style').empty().removeData('submenuKeep'));
 					try {
 						if (! menu.draggable('instance')) {

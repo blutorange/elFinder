@@ -5,6 +5,9 @@
  **/
 $.fn.elfinderdialog = function(opts, fm) {
 	"use strict";
+	var nativeDialog = typeof HTMLDialogElement === "function";
+	var supportsPopover = typeof HTMLElement.prototype.showPopover === "function";
+	var autoHeight, initialHeight;
 	var platformWin = (window.navigator.platform.indexOf('Win') != -1),
 		delta       = {},
 		syncSize    = { enabled: false, width: false, height: false, defaultSize: null },
@@ -55,6 +58,13 @@ $.fn.elfinderdialog = function(opts, fm) {
 			if (opts === 'open') {
 				if (dialog.css('display') === 'none') {
 					// Need dialog.show() and hide() to detect elements size in open() callbacks
+					if (nativeDialog) {
+						if (dialog.data('modal') || !supportsPopover) {
+							dialog[0].showModal();
+						} else {
+							dialog[0].showPopover();
+						}
+					}
 					dialog.trigger('posinit').show().trigger('open').hide();
 					dialog.fadeIn(120, function() {
 						fm.trigger('dialogopened', {dialog: dialog});
@@ -63,6 +73,13 @@ $.fn.elfinderdialog = function(opts, fm) {
 			} else if (opts === 'close' || opts === 'destroy') {
 				dialog.stop(true);
 				if (dialog.is(':visible') || elfNode.is(':hidden')) {
+					if (nativeDialog) {
+						if (dialog.data('modal') || !supportsPopover) {
+							dialog[0].close();
+						} else {
+							dialog[0].hidePopover();
+						}
+					}
 					dialog.trigger('close');
 					fm.trigger('dialogclosed', {dialog: dialog});
 				}
@@ -114,6 +131,11 @@ $.fn.elfinderdialog = function(opts, fm) {
 			syncSize.enabled = true;
 		}
 	}
+
+	// Elements in the top-layer require "height: fit-content" to fit their content. 
+	// Otherwise, they take up the full height of the window.
+	autoHeight = nativeDialog ? 'fit-content' : 'auto';
+	initialHeight = opts.height === 'auto' ? autoHeight : opts.height;
 
 	propagationEvents = fm.arrayFlip(opts.propagationEvents, true);
 	
@@ -275,10 +297,16 @@ $.fn.elfinderdialog = function(opts, fm) {
 										$this.trigger('mousedown');
 									}).removeClass('ui-draggable ui-resizable elfinder-frontmost');
 									tray.append(dum);
+									if (supportsPopover) {
+										tray[0].showPopover();
+									}
 									Object.assign(pos, dum.offset(), dumStyle);
 									dum.remove();
 									mnode.height(dialog.height()).children('.ui-dialog-content:first').empty();
 									fm.toHide(dialog.before(mnode));
+									if (supportsPopover) {
+										mnode[0].showPopover();
+									}
 									mnode.children('.ui-dialog-content:first,.ui-dialog-buttonpane,.ui-resizable-handle').remove();
 									mnode.find('.elfinder-titlebar-minimize,.elfinder-titlebar-full').remove();
 									mnode.find('.ui-dialog-titlebar-close').on('mousedown', function(e) {
@@ -287,6 +315,9 @@ $.fn.elfinderdialog = function(opts, fm) {
 										close();
 									});
 									mnode.animate(pos, function() {
+										if (supportsPopover) {
+											mnode[0].hidePopover();
+										}
 										mnode.attr('style', '')
 										.css({ maxWidth: dialog.width() })
 										.addClass('elfinder-dialog-minimized')
@@ -298,6 +329,9 @@ $.fn.elfinderdialog = function(opts, fm) {
 									//restore
 									dialog.removeData('minimized').before(mnode.css(Object.assign({'position': 'absolute'}, mnode.offset())));
 									fm.toFront(mnode);
+									if (supportsPopover) {
+										mnode[0].showPopover();
+									}
 									mnode.animate(Object.assign({ width: dialog.width(), height: dialog.height() }, doffset), function() {
 										dialog.show();
 										fm.toFront(dialog);
@@ -305,6 +339,9 @@ $.fn.elfinderdialog = function(opts, fm) {
 										posCheck();
 										checkEditing();
 										dialog.trigger('resize', {init: true});
+										if (tray.children().length === 0 && supportsPopover) {
+											tray[0].hidePopover();
+										}
 										typeof(opts.minimize) === 'function' && opts.minimize.call(self[0]);
 									});
 								}
@@ -318,7 +355,8 @@ $.fn.elfinderdialog = function(opts, fm) {
 					}
 				}
 			},
-			dialog = $('<div class="ui-front ui-dialog ui-widget ui-widget-content ui-corner-all ui-draggable std42-dialog touch-punch '+cldialog+' '+opts.cssClass+'"></div>')
+			dialogType = nativeDialog ? 'dialog' : 'div',
+			dialog = $('<' +dialogType + ' popover="manual" class="ui-front ui-dialog ui-widget ui-widget-content ui-corner-all ui-draggable std42-dialog touch-punch '+cldialog+' '+opts.cssClass+'"></' + dialogType + '>')
 				.hide()
 				.append(self)
 				.appendTo(elfNode)
@@ -344,13 +382,13 @@ $.fn.elfinderdialog = function(opts, fm) {
 					},
 					stop : function(e, ui) {
 						evCover.hide();
-						dialog.css({height : opts.height});
+						dialog.css({height : initialHeight});
 						self.data('draged', true);
 					}
 				})
 				.css({
 					width     : opts.width,
-					height    : opts.height,
+					height    : initialHeight,
 					minWidth  : opts.minWidth,
 					minHeight : opts.minHeight,
 					maxWidth  : opts.maxWidth,
@@ -423,6 +461,15 @@ $.fn.elfinderdialog = function(opts, fm) {
 							if (e.keyCode == $.ui.keyCode.ESCAPE && dialog.hasClass('elfinder-frontmost')) {
 								self.elfinderdialog('close');
 							}
+						});
+					}
+					// Dialogs / popovers automatically close on escape, but elFinder
+					// handles such events manually. Prevent the default (close) behavior.
+					if (nativeDialog) {
+						$(document).on('keydown.'+id, function(e) { 
+							if (e.keyCode == $.ui.keyCode.ESCAPE) {
+								e.preventDefault();
+							} 
 						});
 					}
 					dialog.hasClass(fm.res('class', 'editing')) && checkEditing();
@@ -538,6 +585,15 @@ $.fn.elfinderdialog = function(opts, fm) {
 						if (outerSize.bottom + css.top > winSize.bottom) {
 							css.top = Math.max(minTop, winSize.bottom - outerSize.bottom);
 						}
+						// Normally, the dialog is positioned relative to the ElFinder node.
+						// When we are using a native dialog in the HTML top layer, it always
+						// gets positioned relative to the window. I.e. the coordinate system
+						// has its origin at the top left corner of the window, instead of the
+						// top left corner of the ElFinder node.
+						if (nativeDialog) {
+							css.top += nodeOffset.top;
+							css.left += nodeOffset.left;
+						}
 					}
 					if (opts.absolute) {
 						css.position = 'absolute';
@@ -556,7 +612,7 @@ $.fn.elfinderdialog = function(opts, fm) {
 					});
 					autoH = (opts.height === 'auto')? true : false;
 					if (autoH) {
-						self.css({'max-height': '', 'height': 'auto'});
+						self.css({'max-height': '', 'height': autoHeight});
 					}
 					if (!init && syncSize.enabled && !e.originalEvent && !dialog.hasClass('elfinder-maximized')) {
 						h = dialog.height();

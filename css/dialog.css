@@ -2,6 +2,36 @@
 /*                DIALOGS STYLES             */
 /*********************************************/
 
+/* Reset default styles applied by browsers to dialog / popover element */
+.elfinder-dialog {
+    margin: initial;
+    height: initial;
+    top: initial;
+    right: initial;
+    border: initial;
+    padding: initial;
+    opacity: initial;
+    pointer-events: all !important;
+}
+.elfinder-bottomtray {
+    margin: initial;
+    height: initial;
+    top: initial;
+    right: initial;
+    border: initial;
+    padding: initial;
+    opacity: initial;
+    pointer-events: all !important;
+}
+/* Show <dialog> bottomtray even when it is not open */
+.elfinder-bottomtray .elfinder-dialog {
+    display: initial;
+}
+/* Default display for dialog, as some UI frameworks set a default such as display:none for dialogs */
+.elfinder-dialog {
+    display: block;
+}
+
 /* common dialogs class */
 .std42-dialog {
     padding: 0;

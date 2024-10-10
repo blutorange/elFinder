@@ -3737,7 +3737,15 @@ var elFinder = function(elm, opts, bootCallback) {
 		}
 		return true;
 	};
-	
+
+	this.isPopoverOpen = function(target) {
+		return HTMLElement.prototype.hasOwnProperty("popover") && $(target).is(":popover-open");
+	};
+
+	this.isModalDialogOpen = function(target) {
+		return $(target).is("dialog") && $(target).prop("open");
+	};
+
 	/**
 	 * Target ui node move to last of children of elFinder node fot to show front
 	 * 
@@ -3748,6 +3756,22 @@ var elFinder = function(elm, opts, bootCallback) {
 			lastnode = nodes.last();
 		nodes.css('z-index', '');
 		$(target).addClass('ui-front elfinder-frontmost').css('z-index', lastnode.css('z-index') + 1);
+		// Elements in the HTML top layer are sorted in the order they were added
+		// We can move an element to the top by removing it and adding it again
+		if (this.isPopoverOpen(target)) {
+			var popover = $(target)[0];
+			popover.hidePopover();
+			popover.showPopover();
+		}
+		if (this.isModalDialogOpen(target)) {
+			// dialog.close() will fire a native 'close' event, which conflicts
+			// with elFinders 'close' event for closing the dialog.
+			var dialog = $(target)[0];
+			var stop = function(e) {e.stopImmediatePropagation(); e.preventDefault();};
+			dialog.addEventListener('close', stop, {capture: true, once: true});
+			dialog.close();
+			dialog.showModal();
+		}
 	};
 	
 	/**
@@ -5293,7 +5317,7 @@ var elFinder = function(elm, opts, bootCallback) {
 			// container for for preview etc at below the navbar
 			navdock : $('<div></div>').appendTo(node).elfindernavdock(self, self.options.uiOptions.navdock || {}),
 			// contextmenu
-			contextmenu : $('<div></div>').appendTo(node).elfindercontextmenu(self),
+			contextmenu : $('<div popover="manual"></div>').appendTo(node).elfindercontextmenu(self),
 			// overlay
 			overlay : $('<div></div>').appendTo(node).elfinderoverlay({
 				show : function() { self.disable(); },
@@ -5317,7 +5341,7 @@ var elFinder = function(elm, opts, bootCallback) {
 			}),
 			statusbar : $('<div class="ui-widget-header ui-helper-clearfix ui-corner-bottom elfinder-statusbar"></div>').hide().appendTo(node),
 			toast : $('<div class="elfinder-toast"></div>').appendTo(node),
-			bottomtray : $('<div class="elfinder-bottomtray">').appendTo(node),
+			bottomtray : $('<div class="elfinder-bottomtray" popover="manual">').appendTo(node),
 			progressbar : $('<div class="elfinder-ui-progressbar">').appendTo(node)
 		};
 
