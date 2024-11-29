@@ -6,6 +6,8 @@
  **/
 (elFinder.prototype.commands.quicklook = function() {
 	"use strict";
+	var supportsDialogs = typeof HTMLDialogElement === 'function' && typeof HTMLElement.prototype.showPopover === 'function';
+	var dialogType = supportsDialogs ? 'dialog' : 'div'
 	var self       = this,
 		fm         = self.fm,
 		/**
@@ -96,8 +98,8 @@
 				opacity : 0,
 				width   : base.width(),
 				height  : base.height() - 30,
-				top     : baseOffset.top - elf.top,
-				left    : baseOffset.left  - elf.left
+				top     : baseOffset.top - (supportsDialogs ? 0 : elf.top),
+				left    : baseOffset.left  - (supportsDialogs ? 0 : elf.left)
 			};
 		},
 		/**
@@ -115,8 +117,8 @@
 				opacity : 1,
 				width  : w,
 				height : h,
-				top    : parseInt((win.height() - h - 60) / 2 + (contain? 0 : win.scrollTop() - elf.top)),
-				left   : parseInt((win.width() - w) / 2 + (contain? 0 : win.scrollLeft() - elf.left))
+				top    : parseInt((win.height() - h - 60) / 2 + (contain? 0 : win.scrollTop() - (supportsDialogs ? 0 : elf.top))),
+				left   : parseInt((win.width() - w) / 2 + (contain? 0 : win.scrollLeft() - (supportsDialogs ? 0 : elf.left)))
 			};
 		},
 		
@@ -201,19 +203,31 @@
 					navShow();
 					win.toggleClass(fullscreen)
 					.css(win.data('position'));
+					if (supportsDialogs) {
+						if (win[0].open) {
+							var stop = function(e) {e.stopImmediatePropagation(); e.preventDefault();};
+							win[0].addEventListener('close', stop, {capture: true, once: true});
+							win[0].close();
+						}
+						win[0].showPopover();
+					}
 					$window.trigger(self.resize).off(self.resize, resize);
 					navbar.off('mouseenter mouseleave');
 					cover.off(coverEv);
 				} else {
-					win.toggleClass(fullscreen)
-					.data('position', {
+					win.data('position', {
 						left   : win.css('left'), 
 						top    : win.css('top'), 
 						width  : win.width(), 
 						height : win.height(),
-						display: 'block'
-					})
+						display: getComputedStyle(win[0]).display
+					}).toggleClass(fullscreen)
 					.removeAttr('style');
+
+					if (supportsDialogs) {
+						win[0].hidePopover();
+						win[0].showModal();
+					}
 
 					$(window).on(self.resize, resize)
 					.trigger(self.resize);
@@ -324,7 +338,7 @@
 				navtm = null;
 				// if use `show()` it make infinite loop with old jQuery (jQuery/jQuery UI: 1.8.0/1.9.0)
 				// see #1478 https://github.com/Studio-42/elFinder/issues/1478
-				navbar.stop(true, true).css('display', 'block');
+				navbar.stop(true, true).show();
 				coverHide();
 			}
 		},
@@ -479,7 +493,7 @@
 			}
 		});
 
-	this.window = $('<div class="ui-front ui-helper-reset ui-widget elfinder-quicklook touch-punch" style="position:absolute"></div>')
+	this.window = $('<' + dialogType + ' popover="manual" class="ui-front ui-helper-reset ui-widget elfinder-quicklook touch-punch" style="position:absolute"></' + dialogType + '>')
 		.hide()
 		.addClass(fm.UA.Touch? 'elfinder-touch' : '')
 		.on('click', function(e) {
@@ -525,6 +539,9 @@
 				state = animated;
 				node.trigger('scrolltoview');
 				coverHide();
+				if (supportsDialogs) {
+					win[0].showPopover();
+				}
 				win.css(clcss || closedCss(node))
 					.show()
 					.animate(openedCss(), 550, function() {
@@ -549,6 +566,16 @@
 				hash    = (win.data('hash') || '').split('/', 2)[0],
 				close   = function(status, winhide) {
 					state = status;
+					if (supportsDialogs) {
+						if (win[0].open) {
+							var stop = function(e) {e.stopImmediatePropagation(); e.preventDefault();};
+							win[0].addEventListener('close', stop, {capture: true, once: true});
+							win[0].close();
+						}
+						else {
+							win[0].hidePopover();
+						}
+					}
 					winhide && fm.toHide(win);
 					preview.children().remove();
 					self.update(0, self.value);
@@ -586,6 +613,9 @@
 			}
 			state = docked;
 			prevStyle = w.attr('style');
+			if (supportsDialogs) {
+				w[0].hidePopover();
+			}
 			w.toggleClass('ui-front').removeClass('ui-widget').draggable('disable').resizable('disable').removeAttr('style').css({
 				width: '100%',
 				height: height,

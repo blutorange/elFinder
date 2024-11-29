@@ -1,4 +1,9 @@
 /* quicklook window */
+dialog.elfinder-quicklook {
+    max-width: none;
+    max-height: none;
+}
+
 .elfinder-quicklook {
     position: absolute;
     background: url("../img/quicklook-bg.png");

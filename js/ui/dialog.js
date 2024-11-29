@@ -57,7 +57,7 @@ $.fn.elfinderdialog = function(opts, fm) {
 		if ((dialog = this.closest('.ui-dialog')).length) {
 			if (opts === 'open') {
 				if (dialog.css('display') === 'none') {
-					// Need dialog.show() and hide() to detect elements size in open() callbacks
+					// Need dialog.show() and hide() to detect element's size in open() callbacks
 					if (nativeDialog) {
 						if (dialog.data('modal') || !supportsPopover) {
 							dialog[0].showModal();
